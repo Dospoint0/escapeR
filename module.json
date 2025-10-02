@@ -1,0 +1,10 @@
+{
+  "id": "escapeR",
+  "title": "Ignore Escape for Selected Windows",
+  "description": "Prevent specific Foundry windows (e.g., Camera Popouts, Actor Sheets) from closing when the Escape key is pressed.",
+  "version": "0.1",
+  "minimumCoreVersion": "13",
+  "compatibleCoreVersion": "13",
+  "authors": [{ "name": "Dospoint0" }],
+  "scripts": ["escapeR.js"]
+}
