@@ -1,0 +1,55 @@
+# 📦 Ignore-ESC Release Checklist
+
+### 1. Update `module.json`
+- Bump the `"version"` number (e.g. from `"1.1.0"` → `"1.2.0"`).  
+- Update the `"download"` URL to point to the new release tag. Example:  
+  "download": "https://github.com/Dospoint0/escapeR/releases/download/v1.2.0/ignore-esc.zip"
+- Leave the `"manifest"` URL the same (always points to `/releases/latest/download/module.json`).  
+
+---
+
+### 2. Commit and Push Changes
+```bash
+git add module.json
+git commit -m "Bump version to v1.2.0"
+git push
+```
+
+---
+
+### 3. Run the Release Script
+We’ve added a helper script `release.sh` that will:
+
+- Zip up the module into `ignore-esc.zip`
+- Create a new git tag for the version
+- Push the tag to GitHub
+
+Usage:
+
+```bash
+./release.sh 1.2.0
+```
+
+---
+
+### 4. Create a GitHub Release
+1. Go to **GitHub → Releases → Draft new release**.  
+2. Tag version: `v1.2.0` (should already exist from the script).  
+3. Release title: `Ignore ESC v1.2.0`.  
+4. Upload assets:
+   - `ignore-esc.zip` (created by the script)  
+   - `module.json`  
+5. Publish release.
+
+---
+
+### 5. Test Install via Manifest
+In Foundry:  
+- Go to **Add-on Modules → Install Module → Manifest URL**  
+- Paste:  
+  https://github.com/Dospoint0/escapeR/releases/latest/download/module.json
+- Install and verify that the module updates to your new version.
+
+---
+
+✅ That’s it! Users who already installed your module will see an update notification when you publish a new release.
