@@ -35,34 +35,105 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  const AppV2 = foundry?.applications?.api?.ApplicationV2 ?? window.ApplicationV2;
-  if (!AppV2) {
-    console.error(`${MODULE_ID}: ApplicationV2 not found`);
-    return;
-  }
-  if (AppV2.prototype.__ignoreEscPatched) return;
+  const libWrapper = globalThis.libWrapper;
 
-  const orig = AppV2.prototype.close;
-  AppV2.prototype.close = async function (options = {}) {
-    if (options?.closeKey) {
-      const { selected = [], custom = [] } = game.settings.get(MODULE_ID, "protectedClasses") || {};
-      const protectedClasses = [...new Set([...selected, ...custom.map(c => c.trim()).filter(Boolean)])];
+  // Wrapper function that will be used regardless of the registration method
+  async function closeWrapper(wrapped, ...args) {
+    const options = args[0] ?? {};
+    if (options.closeKey) {
+      const { selected = [], custom = [] } =
+        game.settings.get(MODULE_ID, "protectedClasses") || {};
+      const protectedClasses = [
+        ...new Set([
+          ...selected,
+          ...custom.map(c => c.trim()).filter(Boolean)
+        ])
+      ];
 
       const el = this.element ?? null;
       if (el?.classList) {
         for (const cls of protectedClasses) {
           if (el.classList.contains(cls)) {
             console.log(`Ignored ESC for ${cls}`, this);
-            return this;
+            return; // block the close
           }
         }
       }
     }
-    return orig.call(this, options);
+    return wrapped(...args);
+  }
+
+  if (libWrapper) {
+    // Try several possible libWrapper paths for the ApplicationV2 class
+    const libPaths = [
+      "ApplicationV2.prototype.close",
+      "foundry.applications.api.ApplicationV2.prototype.close",
+      "CONFIG.ApplicationV2.prototype.close"
+    ];
+    let registered = false;
+    for (const path of libPaths) {
+      try {
+        libWrapper.register(MODULE_ID, path, closeWrapper);
+        registered = true;
+        console.log(`escapeR – registered via libWrapper using path "${path}"`);
+        break;
+      } catch (e) {
+        if (e.message && e.message.includes("Could not find root scope")) {
+          continue;
+        }
+        throw e;
+      }
+    }
+    if (registered) {
+      console.log("✅ Ignore-ESC active (libWrapper). ESC ignored for configured windows.");
+      return;
+    }
+    // If none of the paths worked libWrapper cannot locate ApplicationV2
+  } else {
+    ui.notifications.error(
+      "escapeR: libWrapper is required for this module to work. Please install and enable libWrapper."
+    );
+  }
+
+  // ----- Fallback: manual override when libWrapper cannot be used -----
+  const AppV2 =
+    globalThis.ApplicationV2 ??
+    globalThis.foundry?.applications?.api?.ApplicationV2 ??
+    null;
+  if (!AppV2) {
+    ui.notifications.error(
+      "escapeR: Could not locate ApplicationV2. The module cannot protect windows."
+    );
+    return;
+  }
+
+  const origClose = AppV2.prototype.close;
+  AppV2.prototype.close = async function (options) {
+    const opts = options ?? {};
+    if (opts.closeKey) {
+      const { selected = [], custom = [] } =
+        game.settings.get(MODULE_ID, "protectedClasses") || {};
+      const protectedClasses = [
+        ...new Set([
+          ...selected,
+          ...custom.map(c => c.trim()).filter(Boolean)
+        ])
+      ];
+
+      const el = this.element ?? null;
+      if (el?.classList) {
+        for (const cls of protectedClasses) {
+          if (el.classList.contains(cls)) {
+            console.log(`Ignored ESC for ${cls}`, this);
+            return; // block the close
+          }
+        }
+      }
+    }
+    return origClose.call(this, options);
   };
 
-  AppV2.prototype.__ignoreEscPatched = true;
-  console.log("✅ Ignore-ESC active. ESC ignored for configured windows.");
+  console.log("✅ Ignore-ESC active (manual override). ESC ignored for configured windows.");
 });
 
 /**
@@ -103,7 +174,8 @@ class IgnoreEscConfig extends FormApplication {
   }
 
   getData() {
-    const { selected = [], custom = [] } = game.settings.get(MODULE_ID, "protectedClasses") || {};
+    const { selected = [], custom = [] } =
+      game.settings.get(MODULE_ID, "protectedClasses") || {};
     return {
       classes: Object.fromEntries(
         Object.entries(AVAILABLE_CLASSES).map(([key, label]) => [
@@ -116,7 +188,9 @@ class IgnoreEscConfig extends FormApplication {
   }
 
   async _updateObject(_event, formData) {
-    const selected = Array.isArray(formData.selected) ? formData.selected : [formData.selected].filter(Boolean);
+    const selected = Array.isArray(formData.selected)
+      ? formData.selected
+      : [formData.selected].filter(Boolean);
     const custom = formData.custom
       ? formData.custom.split(",").map(s => s.trim()).filter(Boolean)
       : [];
