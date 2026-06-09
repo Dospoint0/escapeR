@@ -52,7 +52,7 @@ Hooks.once("ready", () => {
       if (el?.classList) {
         for (const cls of protectedClasses) {
           if (el.classList.contains(cls)) {
-            console.log(`🚫 [Ignore-ESC] Ignored ESC for ${cls}`, this);
+            console.log(`Ignored ESC for ${cls}`, this);
             return this;
           }
         }
